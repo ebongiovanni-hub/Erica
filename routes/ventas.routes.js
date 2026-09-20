@@ -1,229 +1,163 @@
-var express = require("express");
-var router = express.Router();
+import express from "express";
+import fs from "fs/promises";
 
-var jsonDb = require("../utils/jsonDb");
-var leerJson = jsonDb.leerJson;
-var guardarJson = jsonDb.guardarJson;
-var siguienteId = jsonDb.siguienteId;
+const router = express.Router();
+const archivoVentas = "./data/ventas.json";
+const archivoClientes = "./data/clientes.json";
+const archivoLibros = "./data/libros.json";
 
 // Traer todas las ventas
-router.get("/", function(req, res) {
-  var ventas = leerJson("ventas.json");
-  res.json(ventas);
+router.get("/", async (req, res) => {
+  try {
+    const datos = await fs.readFile(archivoVentas, "utf-8");
+    const ventas = JSON.parse(datos);
+
+    res.json(ventas);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al leer las ventas"
+    });
+  }
 });
 
 // Buscar una venta por ID
-router.get("/:id", function(req, res) {
-  var ventas = leerJson("ventas.json");
-  var id = Number(req.params.id);
+router.get("/:id", async (req, res) => {
+  try {
+    const datos = await fs.readFile(archivoVentas, "utf-8");
+    const ventas = JSON.parse(datos);
+    const id = Number(req.params.id);
 
-  var venta = ventas.find(function(venta) {
-    return venta.id_venta === id;
-  });
+    const venta = ventas.find(venta => venta.id_venta === id);
 
-  if (!venta) {
-    return res.status(404).json({
-      mensaje: "Venta no encontrada"
+    if (!venta) {
+      return res.status(404).json({
+        mensaje: "Venta no encontrada"
+      });
+    }
+
+    res.json(venta);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al buscar la venta"
     });
   }
-
-  res.json(venta);
 });
 
 // Registrar una nueva venta
-router.post("/", function(req, res) {
-  var id_cliente = req.body.id_cliente;
-  var fecha = req.body.fecha;
-  var pagada = req.body.pagada;
-  var detalleLibros = req.body.libros;
+router.post("/", async (req, res) => {
+  try {
+    const datosVentas = await fs.readFile(archivoVentas, "utf-8");
+    const datosClientes = await fs.readFile(archivoClientes, "utf-8");
+    const datosLibros = await fs.readFile(archivoLibros, "utf-8");
 
-  if (pagada === undefined) {
-    pagada = false;
-  }
+    const ventas = JSON.parse(datosVentas);
+    const clientes = JSON.parse(datosClientes);
+    const libros = JSON.parse(datosLibros);
 
-  if (
-    id_cliente === undefined ||
-    !fecha ||
-    !Array.isArray(detalleLibros) ||
-    detalleLibros.length === 0
-  ) {
-    return res.status(400).json({
-      mensaje: "id_cliente, fecha y un array de libros son obligatorios"
-    });
-  }
+    const cliente = clientes.find(
+      cliente => cliente.id_cliente === Number(req.body.id_cliente)
+    );
 
-  var clientes = leerJson("clientes.json");
-  var libros = leerJson("libros.json");
-  var ventas = leerJson("ventas.json");
-
-  // Verificar que el cliente exista
-  var cliente = clientes.find(function(cliente) {
-    return cliente.id_cliente === Number(id_cliente);
-  });
-
-  if (!cliente) {
-    return res.status(400).json({
-      mensaje: "El cliente indicado no existe"
-    });
-  }
-
-  // Verificar que el cliente esté activo
-  if (!cliente.activo) {
-    return res.status(400).json({
-      mensaje: "El cliente se encuentra inactivo"
-    });
-  }
-
-  var total = 0;
-  var i;
-  var item;
-  var libro;
-  var cantidad;
-
-  // Verificar libros, cantidades y stock
-  for (i = 0; i < detalleLibros.length; i++) {
-    item = detalleLibros[i];
-
-    libro = libros.find(function(libro) {
-      return libro.id_libro === Number(item.id_libro);
-    });
-
-    cantidad = Number(item.cantidad);
-
-    if (!libro) {
+    if (!cliente) {
       return res.status(400).json({
-        mensaje: "El libro con id " + item.id_libro + " no existe"
+        mensaje: "El cliente indicado no existe"
       });
     }
 
-    if (!Number.isInteger(cantidad) || cantidad <= 0) {
-      return res.status(400).json({
-        mensaje: "La cantidad de cada libro debe ser un entero mayor que cero"
-      });
+    let total = 0;
+
+    for (const item of req.body.libros) {
+      const libro = libros.find(
+        libro => libro.id_libro === Number(item.id_libro)
+      );
+
+      if (!libro) {
+        return res.status(400).json({
+          mensaje: "El libro indicado no existe"
+        });
+      }
+
+      if (libro.stock < Number(item.cantidad)) {
+        return res.status(400).json({
+          mensaje: "Stock insuficiente para " + libro.titulo
+        });
+      }
+
+      total += libro.precio * Number(item.cantidad);
     }
 
-    if (libro.stock < cantidad) {
-      return res.status(400).json({
-        mensaje: "Stock insuficiente para el libro: " + libro.titulo
-      });
-    }
+    for (const item of req.body.libros) {
+      const libro = libros.find(
+        libro => libro.id_libro === Number(item.id_libro)
+      );
 
-    total = total + libro.precio * cantidad;
-  }
-
-  // Descontar del stock los libros vendidos
-  for (i = 0; i < detalleLibros.length; i++) {
-    item = detalleLibros[i];
-
-    libro = libros.find(function(libro) {
-      return libro.id_libro === Number(item.id_libro);
-    });
-
-    libro.stock = libro.stock - Number(item.cantidad);
-    libro.disponible = libro.stock > 0;
-  }
-
-  var nuevaVenta = {
-    id_venta: siguienteId(ventas, "id_venta"),
-    id_cliente: Number(id_cliente),
-    fecha: fecha,
-    total: total,
-    pagada: pagada,
-    libros: []
-  };
-
-  // Guardar el detalle de los libros de la venta
-  for (i = 0; i < detalleLibros.length; i++) {
-    item = detalleLibros[i];
-
-    nuevaVenta.libros.push({
-      id_libro: Number(item.id_libro),
-      cantidad: Number(item.cantidad)
-    });
-  }
-
-  ventas.push(nuevaVenta);
-
-  guardarJson("ventas.json", ventas);
-  guardarJson("libros.json", libros);
-
-  res.status(201).json(nuevaVenta);
-});
-
-// Modificar el estado de pago de una venta
-router.put("/:id", function(req, res) {
-  var ventas = leerJson("ventas.json");
-  var id = Number(req.params.id);
-
-  var indice = ventas.findIndex(function(venta) {
-    return venta.id_venta === id;
-  });
-
-  if (indice === -1) {
-    return res.status(404).json({
-      mensaje: "Venta no encontrada"
-    });
-  }
-
-  var pagada = req.body.pagada;
-
-  if (pagada === undefined) {
-    return res.status(400).json({
-      mensaje: "Para esta actualización debe indicar el campo pagada"
-    });
-  }
-
-  ventas[indice].pagada = pagada;
-
-  guardarJson("ventas.json", ventas);
-
-  res.json(ventas[indice]);
-});
-
-// Eliminar una venta
-router.delete("/:id", function(req, res) {
-  var ventas = leerJson("ventas.json");
-  var libros = leerJson("libros.json");
-  var id = Number(req.params.id);
-
-  var indice = ventas.findIndex(function(venta) {
-    return venta.id_venta === id;
-  });
-
-  if (indice === -1) {
-    return res.status(404).json({
-      mensaje: "Venta no encontrada"
-    });
-  }
-
-  var ventaEliminada = ventas[indice];
-  var i;
-  var item;
-  var libro;
-
-  // Devolver al stock los libros de la venta eliminada
-  for (i = 0; i < ventaEliminada.libros.length; i++) {
-    item = ventaEliminada.libros[i];
-
-    libro = libros.find(function(libro) {
-      return libro.id_libro === item.id_libro;
-    });
-
-    if (libro) {
-      libro.stock = libro.stock + item.cantidad;
+      libro.stock -= Number(item.cantidad);
       libro.disponible = libro.stock > 0;
     }
+
+    const nuevaVenta = {
+      id_venta: ventas.length > 0
+        ? ventas[ventas.length - 1].id_venta + 1
+        : 1,
+      id_cliente: Number(req.body.id_cliente),
+      fecha: req.body.fecha,
+      total: total,
+      pagada: req.body.pagada,
+      libros: req.body.libros
+    };
+
+    ventas.push(nuevaVenta);
+
+    await fs.writeFile(
+      archivoVentas,
+      JSON.stringify(ventas, null, 2)
+    );
+
+    await fs.writeFile(
+      archivoLibros,
+      JSON.stringify(libros, null, 2)
+    );
+
+    res.status(201).json(nuevaVenta);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al registrar la venta"
+    });
   }
-
-  ventas.splice(indice, 1);
-
-  guardarJson("ventas.json", ventas);
-  guardarJson("libros.json", libros);
-
-  res.json({
-    mensaje: "Venta eliminada y stock restituido correctamente",
-    venta: ventaEliminada
-  });
 });
 
-module.exports = router;
+// Modificar una venta
+router.put("/:id", async (req, res) => {
+  try {
+    const datos = await fs.readFile(archivoVentas, "utf-8");
+    const ventas = JSON.parse(datos);
+    const id = Number(req.params.id);
+
+    const index = ventas.findIndex(venta => venta.id_venta === id);
+
+    if (index === -1) {
+      return res.status(404).json({
+        mensaje: "Venta no encontrada"
+      });
+    }
+
+    ventas[index] = {
+      ...ventas[index],
+      ...req.body,
+      id_venta: id
+    };
+
+    await fs.writeFile(
+      archivoVentas,
+      JSON.stringify(ventas, null, 2)
+    );
+
+    res.json(ventas[index]);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al modificar la venta"
+    });
+  }
+});
+
+export default router;
