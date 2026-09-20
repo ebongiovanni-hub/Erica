@@ -5,12 +5,24 @@ const router = express.Router();
 const archivoLibros = "./data/libros.json";
 const archivoGeneros = "./data/generos.json";
 
+// Leer libros
+const leerLibros = async () => {
+  const data = await fs.readFile(archivoLibros, "utf-8");
+  return JSON.parse(data);
+};
+
+// Guardar libros
+const guardarLibros = async (libros) => {
+  await fs.writeFile(
+    archivoLibros,
+    JSON.stringify(libros, null, 2)
+  );
+};
+
 // Traer todos los libros
 router.get("/", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoLibros, "utf-8");
-    const libros = JSON.parse(datos);
-
+    const libros = await leerLibros();
     res.json(libros);
   } catch (error) {
     res.status(500).json({
@@ -22,11 +34,12 @@ router.get("/", async (req, res) => {
 // Buscar un libro por ID
 router.get("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoLibros, "utf-8");
-    const libros = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const libros = await leerLibros();
+    const id = parseInt(req.params.id);
 
-    const libro = libros.find(libro => libro.id_libro === id);
+    const libro = libros.find(
+      libro => libro.id_libro === id
+    );
 
     if (!libro) {
       return res.status(404).json({
@@ -45,17 +58,18 @@ router.get("/:id", async (req, res) => {
 // Crear un libro
 router.post("/", async (req, res) => {
   try {
-    const datosLibros = await fs.readFile(archivoLibros, "utf-8");
-    const datosGeneros = await fs.readFile(archivoGeneros, "utf-8");
+    const libros = await leerLibros();
 
-    const libros = JSON.parse(datosLibros);
-    const generos = JSON.parse(datosGeneros);
+    const data = await fs.readFile(archivoGeneros, "utf-8");
+    const generos = JSON.parse(data);
 
-    const generoExiste = generos.find(
-      genero => genero.id_genero === Number(req.body.id_genero)
+    const idGenero = parseInt(req.body.id_genero);
+
+    const genero = generos.find(
+      genero => genero.id_genero === idGenero
     );
 
-    if (!generoExiste) {
+    if (!genero) {
       return res.status(400).json({
         mensaje: "El género indicado no existe"
       });
@@ -63,22 +77,18 @@ router.post("/", async (req, res) => {
 
     const nuevoLibro = {
       id_libro: libros.length > 0
-        ? libros[libros.length - 1].id_libro + 1
+        ? libros.at(-1).id_libro + 1
         : 1,
       titulo: req.body.titulo,
       autor: req.body.autor,
-      id_genero: Number(req.body.id_genero),
-      precio: Number(req.body.precio),
-      stock: Number(req.body.stock),
-      disponible: Number(req.body.stock) > 0
+      id_genero: idGenero,
+      precio: req.body.precio,
+      stock: req.body.stock,
+      disponible: req.body.stock > 0
     };
 
     libros.push(nuevoLibro);
-
-    await fs.writeFile(
-      archivoLibros,
-      JSON.stringify(libros, null, 2)
-    );
+    await guardarLibros(libros);
 
     res.status(201).json(nuevoLibro);
   } catch (error) {
@@ -91,11 +101,12 @@ router.post("/", async (req, res) => {
 // Modificar un libro
 router.put("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoLibros, "utf-8");
-    const libros = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const libros = await leerLibros();
+    const id = parseInt(req.params.id);
 
-    const index = libros.findIndex(libro => libro.id_libro === id);
+    const index = libros.findIndex(
+      libro => libro.id_libro === id
+    );
 
     if (index === -1) {
       return res.status(404).json({
@@ -103,16 +114,14 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    libros[index] = {
-      ...libros[index],
-      ...req.body,
-      id_libro: id
-    };
+    libros[index].titulo = req.body.titulo;
+    libros[index].autor = req.body.autor;
+    libros[index].id_genero = parseInt(req.body.id_genero);
+    libros[index].precio = req.body.precio;
+    libros[index].stock = req.body.stock;
+    libros[index].disponible = req.body.stock > 0;
 
-    await fs.writeFile(
-      archivoLibros,
-      JSON.stringify(libros, null, 2)
-    );
+    await guardarLibros(libros);
 
     res.json(libros[index]);
   } catch (error) {
