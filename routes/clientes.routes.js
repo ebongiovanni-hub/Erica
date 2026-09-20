@@ -19,6 +19,12 @@ const guardarClientes = async (clientes) => {
   );
 };
 
+// Leer ventas
+const leerVentas = async () => {
+  const data = await fs.readFile(archivoVentas, "utf-8");
+  return JSON.parse(data);
+};
+
 // Traer todos los clientes
 router.get("/", async (req, res) => {
   try {
@@ -98,11 +104,25 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    clientes[index].nombre = req.body.nombre;
-    clientes[index].apellido = req.body.apellido;
-    clientes[index].email = req.body.email;
-    clientes[index].telefono = req.body.telefono;
-    clientes[index].activo = req.body.activo;
+    if (req.body.nombre !== undefined) {
+      clientes[index].nombre = req.body.nombre;
+    }
+
+    if (req.body.apellido !== undefined) {
+      clientes[index].apellido = req.body.apellido;
+    }
+
+    if (req.body.email !== undefined) {
+      clientes[index].email = req.body.email;
+    }
+
+    if (req.body.telefono !== undefined) {
+      clientes[index].telefono = req.body.telefono;
+    }
+
+    if (req.body.activo !== undefined) {
+      clientes[index].activo = req.body.activo;
+    }
 
     await guardarClientes(clientes);
 
@@ -118,8 +138,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const clientes = await leerClientes();
-    const dataVentas = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(dataVentas);
+    const ventas = await leerVentas();
     const id = parseInt(req.params.id);
 
     const index = clientes.findIndex(
