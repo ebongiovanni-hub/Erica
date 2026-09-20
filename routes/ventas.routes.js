@@ -95,6 +95,18 @@ router.post("/", async (req, res) => {
       });
     }
 
+    if (!cliente.activo) {
+      return res.status(400).json({
+        mensaje: "El cliente indicado no está activo"
+      });
+    }
+
+    if (!req.body.libros || req.body.libros.length === 0) {
+      return res.status(400).json({
+        mensaje: "La venta debe incluir al menos un libro"
+      });
+    }
+
     let total = 0;
 
     for (let i = 0; i < req.body.libros.length; i++) {
@@ -109,6 +121,12 @@ router.post("/", async (req, res) => {
       if (!libro) {
         return res.status(400).json({
           mensaje: "El libro indicado no existe"
+        });
+      }
+
+      if (cantidad <= 0) {
+        return res.status(400).json({
+          mensaje: "La cantidad debe ser mayor que cero"
         });
       }
 
@@ -162,6 +180,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const ventas = await leerVentas();
+    const clientes = await leerClientes();
     const id = parseInt(req.params.id);
 
     const index = ventas.findIndex(
@@ -174,11 +193,35 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    ventas[index].id_cliente = parseInt(req.body.id_cliente);
-    ventas[index].fecha = req.body.fecha;
-    ventas[index].total = req.body.total;
-    ventas[index].pagada = req.body.pagada;
-    ventas[index].libros = req.body.libros;
+    if (req.body.id_cliente !== undefined) {
+      const idCliente = parseInt(req.body.id_cliente);
+
+      const cliente = clientes.find(
+        cliente => cliente.id_cliente === idCliente
+      );
+
+      if (!cliente) {
+        return res.status(400).json({
+          mensaje: "El cliente indicado no existe"
+        });
+      }
+
+      if (!cliente.activo) {
+        return res.status(400).json({
+          mensaje: "El cliente indicado no está activo"
+        });
+      }
+
+      ventas[index].id_cliente = idCliente;
+    }
+
+    if (req.body.fecha !== undefined) {
+      ventas[index].fecha = req.body.fecha;
+    }
+
+    if (req.body.pagada !== undefined) {
+      ventas[index].pagada = req.body.pagada;
+    }
 
     await guardarVentas(ventas);
 
