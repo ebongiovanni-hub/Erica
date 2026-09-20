@@ -3,13 +3,26 @@ import fs from "fs/promises";
 
 const router = express.Router();
 const archivoClientes = "./data/clientes.json";
+const archivoVentas = "./data/ventas.json";
+
+// Leer clientes
+const leerClientes = async () => {
+  const datos = await fs.readFile(archivoClientes, "utf-8");
+  return JSON.parse(datos);
+};
+
+// Guardar clientes
+const guardarClientes = async (clientes) => {
+  await fs.writeFile(
+    archivoClientes,
+    JSON.stringify(clientes, null, 2)
+  );
+};
 
 // Traer todos los clientes
 router.get("/", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(datos);
-
+    const clientes = await leerClientes();
     res.json(clientes);
   } catch (error) {
     res.status(500).json({
@@ -21,11 +34,12 @@ router.get("/", async (req, res) => {
 // Buscar un cliente por ID
 router.get("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const clientes = await leerClientes();
+    const id = parseInt(req.params.id);
 
-    const cliente = clientes.find(cliente => cliente.id_cliente === id);
+    const cliente = clientes.find(
+      cliente => cliente.id_cliente === id
+    );
 
     if (!cliente) {
       return res.status(404).json({
@@ -44,12 +58,11 @@ router.get("/:id", async (req, res) => {
 // Crear un cliente
 router.post("/", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(datos);
+    const clientes = await leerClientes();
 
     const nuevoCliente = {
       id_cliente: clientes.length > 0
-        ? clientes[clientes.length - 1].id_cliente + 1
+        ? clientes.at(-1).id_cliente + 1
         : 1,
       nombre: req.body.nombre,
       apellido: req.body.apellido,
@@ -59,11 +72,7 @@ router.post("/", async (req, res) => {
     };
 
     clientes.push(nuevoCliente);
-
-    await fs.writeFile(
-      archivoClientes,
-      JSON.stringify(clientes, null, 2)
-    );
+    await guardarClientes(clientes);
 
     res.status(201).json(nuevoCliente);
   } catch (error) {
@@ -76,11 +85,12 @@ router.post("/", async (req, res) => {
 // Modificar un cliente
 router.put("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const clientes = await leerClientes();
+    const id = parseInt(req.params.id);
 
-    const index = clientes.findIndex(cliente => cliente.id_cliente === id);
+    const index = clientes.findIndex(
+      cliente => cliente.id_cliente === id
+    );
 
     if (index === -1) {
       return res.status(404).json({
@@ -88,16 +98,13 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    clientes[index] = {
-      ...clientes[index],
-      ...req.body,
-      id_cliente: id
-    };
+    clientes[index].nombre = req.body.nombre;
+    clientes[index].apellido = req.body.apellido;
+    clientes[index].email = req.body.email;
+    clientes[index].telefono = req.body.telefono;
+    clientes[index].activo = req.body.activo;
 
-    await fs.writeFile(
-      archivoClientes,
-      JSON.stringify(clientes, null, 2)
-    );
+    await guardarClientes(clientes);
 
     res.json(clientes[index]);
   } catch (error) {
@@ -110,45 +117,10 @@ router.put("/:id", async (req, res) => {
 // Eliminar un cliente
 router.delete("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(datos);
-    const id = Number(req.params.id);
-
-    const index = clientes.findIndex(cliente => cliente.id_cliente === id);
-
-    if (index === -1) {
-      return res.status(404).json({
-        mensaje: "Cliente no encontrado"
-      });
-    }
-
-    const clienteEliminado = clientes.splice(index, 1);
-
-    await fs.writeFile(
-      archivoClientes,
-      JSON.stringify(clientes, null, 2)
-    );
-
-    res.json({
-      mensaje: "Cliente eliminado correctamente",
-      cliente: clienteEliminado[0]
-    });
-  } catch (error) {
-    res.status(500).json({
-      mensaje: "Error al eliminar el cliente"
-    });
-  }
-});
-
-// Eliminar un cliente
-router.delete("/:id", async (req, res) => {
-  try {
-    const datosClientes = await fs.readFile(archivoClientes, "utf-8");
-    const datosVentas = await fs.readFile("./data/ventas.json", "utf-8");
-
-    const clientes = JSON.parse(datosClientes);
+    const clientes = await leerClientes();
+    const datosVentas = await fs.readFile(archivoVentas, "utf-8");
     const ventas = JSON.parse(datosVentas);
-    const id = Number(req.params.id);
+    const id = parseInt(req.params.id);
 
     const index = clientes.findIndex(
       cliente => cliente.id_cliente === id
@@ -170,16 +142,10 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    clientes.splice(index, 1);
+    const clienteEliminado = clientes.splice(index, 1);
+    await guardarClientes(clientes);
 
-    await fs.writeFile(
-      archivoClientes,
-      JSON.stringify(clientes, null, 2)
-    );
-
-    res.json({
-      mensaje: "Cliente eliminado correctamente"
-    });
+    res.json(clienteEliminado[0]);
   } catch (error) {
     res.status(500).json({
       mensaje: "Error al eliminar el cliente"
