@@ -6,12 +6,24 @@ const archivoVentas = "./data/ventas.json";
 const archivoClientes = "./data/clientes.json";
 const archivoLibros = "./data/libros.json";
 
+// Leer ventas
+const leerVentas = async () => {
+  const data = await fs.readFile(archivoVentas, "utf-8");
+  return JSON.parse(data);
+};
+
+// Guardar ventas
+const guardarVentas = async (ventas) => {
+  await fs.writeFile(
+    archivoVentas,
+    JSON.stringify(ventas, null, 2)
+  );
+};
+
 // Traer todas las ventas
 router.get("/", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(datos);
-
+    const ventas = await leerVentas();
     res.json(ventas);
   } catch (error) {
     res.status(500).json({
@@ -23,11 +35,12 @@ router.get("/", async (req, res) => {
 // Buscar una venta por ID
 router.get("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const ventas = await leerVentas();
+    const id = parseInt(req.params.id);
 
-    const venta = ventas.find(venta => venta.id_venta === id);
+    const venta = ventas.find(
+      venta => venta.id_venta === id
+    );
 
     if (!venta) {
       return res.status(404).json({
@@ -46,16 +59,18 @@ router.get("/:id", async (req, res) => {
 // Registrar una nueva venta
 router.post("/", async (req, res) => {
   try {
-    const datosVentas = await fs.readFile(archivoVentas, "utf-8");
-    const datosClientes = await fs.readFile(archivoClientes, "utf-8");
-    const datosLibros = await fs.readFile(archivoLibros, "utf-8");
+    const ventas = await leerVentas();
 
-    const ventas = JSON.parse(datosVentas);
-    const clientes = JSON.parse(datosClientes);
-    const libros = JSON.parse(datosLibros);
+    const dataClientes = await fs.readFile(archivoClientes, "utf-8");
+    const clientes = JSON.parse(dataClientes);
+
+    const dataLibros = await fs.readFile(archivoLibros, "utf-8");
+    const libros = JSON.parse(dataLibros);
+
+    const idCliente = parseInt(req.body.id_cliente);
 
     const cliente = clientes.find(
-      cliente => cliente.id_cliente === Number(req.body.id_cliente)
+      cliente => cliente.id_cliente === idCliente
     );
 
     if (!cliente) {
@@ -66,40 +81,21 @@ router.post("/", async (req, res) => {
 
     let total = 0;
 
-    for (const item of req.body.libros) {
+    req.body.libros.forEach(item => {
       const libro = libros.find(
-        libro => libro.id_libro === Number(item.id_libro)
+        libro => libro.id_libro === parseInt(item.id_libro)
       );
 
-      if (!libro) {
-        return res.status(400).json({
-          mensaje: "El libro indicado no existe"
-        });
+      if (libro) {
+        total = total + libro.precio * item.cantidad;
       }
-
-      if (libro.stock < Number(item.cantidad)) {
-        return res.status(400).json({
-          mensaje: "Stock insuficiente para " + libro.titulo
-        });
-      }
-
-      total += libro.precio * Number(item.cantidad);
-    }
-
-    for (const item of req.body.libros) {
-      const libro = libros.find(
-        libro => libro.id_libro === Number(item.id_libro)
-      );
-
-      libro.stock -= Number(item.cantidad);
-      libro.disponible = libro.stock > 0;
-    }
+    });
 
     const nuevaVenta = {
       id_venta: ventas.length > 0
-        ? ventas[ventas.length - 1].id_venta + 1
+        ? ventas.at(-1).id_venta + 1
         : 1,
-      id_cliente: Number(req.body.id_cliente),
+      id_cliente: idCliente,
       fecha: req.body.fecha,
       total: total,
       pagada: req.body.pagada,
@@ -107,16 +103,7 @@ router.post("/", async (req, res) => {
     };
 
     ventas.push(nuevaVenta);
-
-    await fs.writeFile(
-      archivoVentas,
-      JSON.stringify(ventas, null, 2)
-    );
-
-    await fs.writeFile(
-      archivoLibros,
-      JSON.stringify(libros, null, 2)
-    );
+    await guardarVentas(ventas);
 
     res.status(201).json(nuevaVenta);
   } catch (error) {
@@ -129,11 +116,12 @@ router.post("/", async (req, res) => {
 // Modificar una venta
 router.put("/:id", async (req, res) => {
   try {
-    const datos = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(datos);
-    const id = Number(req.params.id);
+    const ventas = await leerVentas();
+    const id = parseInt(req.params.id);
 
-    const index = ventas.findIndex(venta => venta.id_venta === id);
+    const index = ventas.findIndex(
+      venta => venta.id_venta === id
+    );
 
     if (index === -1) {
       return res.status(404).json({
@@ -141,16 +129,12 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    ventas[index] = {
-      ...ventas[index],
-      ...req.body,
-      id_venta: id
-    };
+    ventas[index].id_cliente = parseInt(req.body.id_cliente);
+    ventas[index].fecha = req.body.fecha;
+    ventas[index].pagada = req.body.pagada;
+    ventas[index].libros = req.body.libros;
 
-    await fs.writeFile(
-      archivoVentas,
-      JSON.stringify(ventas, null, 2)
-    );
+    await guardarVentas(ventas);
 
     res.json(ventas[index]);
   } catch (error) {
