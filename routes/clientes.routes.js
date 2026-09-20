@@ -140,4 +140,51 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// Eliminar un cliente
+router.delete("/:id", async (req, res) => {
+  try {
+    const datosClientes = await fs.readFile(archivoClientes, "utf-8");
+    const datosVentas = await fs.readFile("./data/ventas.json", "utf-8");
+
+    const clientes = JSON.parse(datosClientes);
+    const ventas = JSON.parse(datosVentas);
+    const id = Number(req.params.id);
+
+    const index = clientes.findIndex(
+      cliente => cliente.id_cliente === id
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        mensaje: "Cliente no encontrado"
+      });
+    }
+
+    const tieneVentas = ventas.find(
+      venta => venta.id_cliente === id
+    );
+
+    if (tieneVentas) {
+      return res.status(400).json({
+        mensaje: "No se puede eliminar el cliente porque tiene ventas asociadas"
+      });
+    }
+
+    clientes.splice(index, 1);
+
+    await fs.writeFile(
+      archivoClientes,
+      JSON.stringify(clientes, null, 2)
+    );
+
+    res.json({
+      mensaje: "Cliente eliminado correctamente"
+    });
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al eliminar el cliente"
+    });
+  }
+});
+
 export default router;
