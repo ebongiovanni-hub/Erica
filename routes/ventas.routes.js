@@ -20,6 +20,26 @@ const guardarVentas = async (ventas) => {
   );
 };
 
+// Leer clientes
+const leerClientes = async () => {
+  const data = await fs.readFile(archivoClientes, "utf-8");
+  return JSON.parse(data);
+};
+
+// Leer libros
+const leerLibros = async () => {
+  const data = await fs.readFile(archivoLibros, "utf-8");
+  return JSON.parse(data);
+};
+
+// Guardar libros
+const guardarLibros = async (libros) => {
+  await fs.writeFile(
+    archivoLibros,
+    JSON.stringify(libros, null, 2)
+  );
+};
+
 // Traer todas las ventas
 router.get("/", async (req, res) => {
   try {
@@ -60,12 +80,8 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const ventas = await leerVentas();
-
-    const dataClientes = await fs.readFile(archivoClientes, "utf-8");
-    const clientes = JSON.parse(dataClientes);
-
-    const dataLibros = await fs.readFile(archivoLibros, "utf-8");
-    const libros = JSON.parse(dataLibros);
+    const clientes = await leerClientes();
+    const libros = await leerLibros();
 
     const idCliente = parseInt(req.body.id_cliente);
 
@@ -81,15 +97,42 @@ router.post("/", async (req, res) => {
 
     let total = 0;
 
-    req.body.libros.forEach(item => {
+    for (let i = 0; i < req.body.libros.length; i++) {
+      const item = req.body.libros[i];
+      const idLibro = parseInt(item.id_libro);
+      const cantidad = parseInt(item.cantidad);
+
       const libro = libros.find(
-        libro => libro.id_libro === parseInt(item.id_libro)
+        libro => libro.id_libro === idLibro
       );
 
-      if (libro) {
-        total = total + libro.precio * item.cantidad;
+      if (!libro) {
+        return res.status(400).json({
+          mensaje: "El libro indicado no existe"
+        });
       }
-    });
+
+      if (libro.stock < cantidad) {
+        return res.status(400).json({
+          mensaje: "Stock insuficiente para " + libro.titulo
+        });
+      }
+
+      total = total + libro.precio * cantidad;
+    }
+
+    for (let i = 0; i < req.body.libros.length; i++) {
+      const item = req.body.libros[i];
+      const idLibro = parseInt(item.id_libro);
+      const cantidad = parseInt(item.cantidad);
+
+      const libro = libros.find(
+        libro => libro.id_libro === idLibro
+      );
+
+      libro.stock = libro.stock - cantidad;
+      libro.disponible = libro.stock > 0;
+    }
 
     const nuevaVenta = {
       id_venta: ventas.length > 0
@@ -103,7 +146,9 @@ router.post("/", async (req, res) => {
     };
 
     ventas.push(nuevaVenta);
+
     await guardarVentas(ventas);
+    await guardarLibros(libros);
 
     res.status(201).json(nuevaVenta);
   } catch (error) {
@@ -131,6 +176,7 @@ router.put("/:id", async (req, res) => {
 
     ventas[index].id_cliente = parseInt(req.body.id_cliente);
     ventas[index].fecha = req.body.fecha;
+    ventas[index].total = req.body.total;
     ventas[index].pagada = req.body.pagada;
     ventas[index].libros = req.body.libros;
 
@@ -140,6 +186,53 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       mensaje: "Error al modificar la venta"
+    });
+  }
+});
+
+// Eliminar una venta
+router.delete("/:id", async (req, res) => {
+  try {
+    const ventas = await leerVentas();
+    const libros = await leerLibros();
+    const id = parseInt(req.params.id);
+
+    const index = ventas.findIndex(
+      venta => venta.id_venta === id
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        mensaje: "Venta no encontrada"
+      });
+    }
+
+    const venta = ventas[index];
+
+    for (let i = 0; i < venta.libros.length; i++) {
+      const item = venta.libros[i];
+      const idLibro = parseInt(item.id_libro);
+      const cantidad = parseInt(item.cantidad);
+
+      const libro = libros.find(
+        libro => libro.id_libro === idLibro
+      );
+
+      if (libro) {
+        libro.stock = libro.stock + cantidad;
+        libro.disponible = libro.stock > 0;
+      }
+    }
+
+    const ventaEliminada = ventas.splice(index, 1);
+
+    await guardarVentas(ventas);
+    await guardarLibros(libros);
+
+    res.json(ventaEliminada[0]);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al eliminar la venta"
     });
   }
 });
