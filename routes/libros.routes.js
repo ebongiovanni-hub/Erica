@@ -26,6 +26,12 @@ const leerGeneros = async () => {
   return JSON.parse(data);
 };
 
+// Leer ventas
+const leerVentas = async () => {
+  const data = await fs.readFile(archivoVentas, "utf-8");
+  return JSON.parse(data);
+};
+
 // Traer todos los libros
 router.get("/", async (req, res) => {
   try {
@@ -108,7 +114,6 @@ router.put("/:id", async (req, res) => {
     const libros = await leerLibros();
     const generos = await leerGeneros();
     const id = parseInt(req.params.id);
-    const idGenero = parseInt(req.body.id_genero);
 
     const index = libros.findIndex(
       libro => libro.id_libro === id
@@ -120,22 +125,42 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    const genero = generos.find(
-      genero => genero.id_genero === idGenero
-    );
+    if (req.body.id_genero !== undefined) {
+      const idGenero = parseInt(req.body.id_genero);
 
-    if (!genero) {
-      return res.status(400).json({
-        mensaje: "El género indicado no existe"
-      });
+      const genero = generos.find(
+        genero => genero.id_genero === idGenero
+      );
+
+      if (!genero) {
+        return res.status(400).json({
+          mensaje: "El género indicado no existe"
+        });
+      }
+
+      libros[index].id_genero = idGenero;
     }
 
-    libros[index].titulo = req.body.titulo;
-    libros[index].autor = req.body.autor;
-    libros[index].id_genero = idGenero;
-    libros[index].precio = req.body.precio;
-    libros[index].stock = req.body.stock;
-    libros[index].disponible = req.body.stock > 0;
+    if (req.body.titulo !== undefined) {
+      libros[index].titulo = req.body.titulo;
+    }
+
+    if (req.body.autor !== undefined) {
+      libros[index].autor = req.body.autor;
+    }
+
+    if (req.body.precio !== undefined) {
+      libros[index].precio = req.body.precio;
+    }
+
+    if (req.body.stock !== undefined) {
+      libros[index].stock = req.body.stock;
+      libros[index].disponible = req.body.stock > 0;
+    }
+
+    if (req.body.disponible !== undefined) {
+      libros[index].disponible = req.body.disponible;
+    }
 
     await guardarLibros(libros);
 
@@ -151,8 +176,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const libros = await leerLibros();
-    const dataVentas = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(dataVentas);
+    const ventas = await leerVentas();
     const id = parseInt(req.params.id);
 
     const index = libros.findIndex(
