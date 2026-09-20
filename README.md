@@ -1,5 +1,9 @@
 # Actividad Librería
 
+**Materia:** Aplicaciones Web II  
+**Estudiante:** Migotti, Ana Josefina  
+**N° de Documento:** 43.132.432
+
 Segunda entrega del trabajo práctico de Aplicaciones Web 2.
 
 En esta entrega se agregó Express al proyecto y se crearon las rutas necesarias para trabajar con los datos de clientes, libros, géneros y ventas.
@@ -417,10 +421,10 @@ Al eliminar una venta, las cantidades de los libros incluidos en esa venta se vu
 
 Para mantener la relación entre los datos se agregaron algunas validaciones:
 
-* No se puede eliminar un cliente si tiene ventas asociadas.
-* No se puede eliminar un libro si aparece en una venta.
-* No se puede eliminar un género si tiene libros asociados.
-* Para registrar una venta, el cliente debe existir y estar activo.
-* Los libros incluidos en una venta deben existir y tener stock suficiente.
-* Cuando se registra una venta se descuenta el stock correspondiente.
-* Si se elimina una venta, las cantidades de los libros vuelven a sumarse al stock.
+- No se puede eliminar un cliente si tiene ventas asociadas.
+- No se puede eliminar un libro si aparece en una venta.
+- No se puede eliminar un género si tiene libros asociados.
+- Para registrar una venta, el cliente debe existir y estar activo.
+- Los libros incluidos en una venta deben existir y tener stock suficiente.
+- Cuando se registra una venta se descuenta el stock correspondiente.
+- Si se elimina una venta, las cantidades de los libros vuelven a sumarse al stock.
