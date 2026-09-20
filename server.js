@@ -1,18 +1,18 @@
-var express = require("express");
+import express from "express";
 
-var clientesRoutes = require("./routes/clientes.routes");
-var librosRoutes = require("./routes/libros.routes");
-var generosRoutes = require("./routes/generos.routes");
-var ventasRoutes = require("./routes/ventas.routes");
+import clientesRoutes from "./routes/clientes.routes.js";
+import librosRoutes from "./routes/libros.routes.js";
+import generosRoutes from "./routes/generos.routes.js";
+import ventasRoutes from "./routes/ventas.routes.js";
 
-var app = express();
-var PORT = 3000;
+const app = express();
+const PORT = 3000;
 
 app.use(express.json());
 
-app.get("/", function(req, res) {
+app.get("/", (req, res) => {
   res.json({
-    proyecto: "Librería",
+    proyecto: "Actividad Librería",
     mensaje: "La API está funcionando correctamente!!!"
   });
 });
@@ -22,12 +22,12 @@ app.use("/libros", librosRoutes);
 app.use("/generos", generosRoutes);
 app.use("/ventas", ventasRoutes);
 
-app.use(function(req, res) {
+app.use((req, res) => {
   res.status(404).json({
     mensaje: "Ruta no encontrada"
   });
 });
 
-app.listen(PORT, function() {
+app.listen(PORT, () => {
   console.log("Servidor ejecutándose en http://localhost:" + PORT);
 });
