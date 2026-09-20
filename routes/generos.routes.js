@@ -3,6 +3,7 @@ import fs from "fs/promises";
 
 const router = express.Router();
 const archivoGeneros = "./data/generos.json";
+const archivoLibros = "./data/libros.json";
 
 // Leer géneros
 const leerGeneros = async () => {
@@ -16,6 +17,12 @@ const guardarGeneros = async (generos) => {
     archivoGeneros,
     JSON.stringify(generos, null, 2)
   );
+};
+
+// Leer libros
+const leerLibros = async () => {
+  const data = await fs.readFile(archivoLibros, "utf-8");
+  return JSON.parse(data);
 };
 
 // Traer todos los géneros
@@ -94,8 +101,13 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    generos[index].nombre = req.body.nombre;
-    generos[index].activo = req.body.activo;
+    if (req.body.nombre !== undefined) {
+      generos[index].nombre = req.body.nombre;
+    }
+
+    if (req.body.activo !== undefined) {
+      generos[index].activo = req.body.activo;
+    }
 
     await guardarGeneros(generos);
 
@@ -103,6 +115,44 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       mensaje: "Error al modificar el género"
+    });
+  }
+});
+
+// Eliminar un género
+router.delete("/:id", async (req, res) => {
+  try {
+    const generos = await leerGeneros();
+    const libros = await leerLibros();
+    const id = parseInt(req.params.id);
+
+    const index = generos.findIndex(
+      genero => genero.id_genero === id
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        mensaje: "Género no encontrado"
+      });
+    }
+
+    const tieneLibros = libros.find(
+      libro => libro.id_genero === id
+    );
+
+    if (tieneLibros) {
+      return res.status(400).json({
+        mensaje: "No se puede eliminar el género porque tiene libros asociados"
+      });
+    }
+
+    const generoEliminado = generos.splice(index, 1);
+    await guardarGeneros(generos);
+
+    res.json(generoEliminado[0]);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al eliminar el género"
     });
   }
 });
