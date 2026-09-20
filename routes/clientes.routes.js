@@ -7,8 +7,8 @@ const archivoVentas = "./data/ventas.json";
 
 // Leer clientes
 const leerClientes = async () => {
-  const datos = await fs.readFile(archivoClientes, "utf-8");
-  return JSON.parse(datos);
+  const data = await fs.readFile(archivoClientes, "utf-8");
+  return JSON.parse(data);
 };
 
 // Guardar clientes
@@ -118,8 +118,8 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const clientes = await leerClientes();
-    const datosVentas = await fs.readFile(archivoVentas, "utf-8");
-    const ventas = JSON.parse(datosVentas);
+    const dataVentas = await fs.readFile(archivoVentas, "utf-8");
+    const ventas = JSON.parse(dataVentas);
     const id = parseInt(req.params.id);
 
     const index = clientes.findIndex(
