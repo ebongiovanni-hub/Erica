@@ -33,13 +33,13 @@ npm.cmd install
 4. Iniciar el servidor:
 
 ```bash
-node server.js
+node index.js
 ```
 
 Si todo funciona correctamente, en la terminal aparecerá:
 
 ```text
-Servidor ejecutándose en http://localhost:3000
+Servidor corriendo en http://localhost:3000
 ```
 
 El servidor debe permanecer ejecutándose mientras se realizan las pruebas.
@@ -143,13 +143,13 @@ Thunder Client
 1. Verificar que el servidor continúe ejecutándose. En la terminal debe aparecer:
 
 ```text
-Servidor ejecutándose en http://localhost:3000
+Servidor corriendo en http://localhost:3000
 ```
 
 Si el servidor no está ejecutándose, abrir la terminal y ejecutar:
 
 ```bash
-node server.js
+node index.js
 ```
 
 2. En Thunder Client seleccionar el tipo de solicitud que se quiere realizar: `POST`, `PUT` o `DELETE`.
