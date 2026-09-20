@@ -4,6 +4,7 @@ import fs from "fs/promises";
 const router = express.Router();
 const archivoLibros = "./data/libros.json";
 const archivoGeneros = "./data/generos.json";
+const archivoVentas = "./data/ventas.json";
 
 // Leer libros
 const leerLibros = async () => {
@@ -17,6 +18,12 @@ const guardarLibros = async (libros) => {
     archivoLibros,
     JSON.stringify(libros, null, 2)
   );
+};
+
+// Leer géneros
+const leerGeneros = async () => {
+  const data = await fs.readFile(archivoGeneros, "utf-8");
+  return JSON.parse(data);
 };
 
 // Traer todos los libros
@@ -59,10 +66,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const libros = await leerLibros();
-
-    const data = await fs.readFile(archivoGeneros, "utf-8");
-    const generos = JSON.parse(data);
-
+    const generos = await leerGeneros();
     const idGenero = parseInt(req.body.id_genero);
 
     const genero = generos.find(
@@ -102,6 +106,53 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const libros = await leerLibros();
+    const generos = await leerGeneros();
+    const id = parseInt(req.params.id);
+    const idGenero = parseInt(req.body.id_genero);
+
+    const index = libros.findIndex(
+      libro => libro.id_libro === id
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        mensaje: "Libro no encontrado"
+      });
+    }
+
+    const genero = generos.find(
+      genero => genero.id_genero === idGenero
+    );
+
+    if (!genero) {
+      return res.status(400).json({
+        mensaje: "El género indicado no existe"
+      });
+    }
+
+    libros[index].titulo = req.body.titulo;
+    libros[index].autor = req.body.autor;
+    libros[index].id_genero = idGenero;
+    libros[index].precio = req.body.precio;
+    libros[index].stock = req.body.stock;
+    libros[index].disponible = req.body.stock > 0;
+
+    await guardarLibros(libros);
+
+    res.json(libros[index]);
+  } catch (error) {
+    res.status(500).json({
+      mensaje: "Error al modificar el libro"
+    });
+  }
+});
+
+// Eliminar un libro
+router.delete("/:id", async (req, res) => {
+  try {
+    const libros = await leerLibros();
+    const dataVentas = await fs.readFile(archivoVentas, "utf-8");
+    const ventas = JSON.parse(dataVentas);
     const id = parseInt(req.params.id);
 
     const index = libros.findIndex(
@@ -114,19 +165,25 @@ router.put("/:id", async (req, res) => {
       });
     }
 
-    libros[index].titulo = req.body.titulo;
-    libros[index].autor = req.body.autor;
-    libros[index].id_genero = parseInt(req.body.id_genero);
-    libros[index].precio = req.body.precio;
-    libros[index].stock = req.body.stock;
-    libros[index].disponible = req.body.stock > 0;
+    const tieneVentas = ventas.find(
+      venta => venta.libros.find(
+        item => parseInt(item.id_libro) === id
+      )
+    );
 
+    if (tieneVentas) {
+      return res.status(400).json({
+        mensaje: "No se puede eliminar el libro porque tiene ventas asociadas"
+      });
+    }
+
+    const libroEliminado = libros.splice(index, 1);
     await guardarLibros(libros);
 
-    res.json(libros[index]);
+    res.json(libroEliminado[0]);
   } catch (error) {
     res.status(500).json({
-      mensaje: "Error al modificar el libro"
+      mensaje: "Error al eliminar el libro"
     });
   }
 });
