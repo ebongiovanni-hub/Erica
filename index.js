@@ -9,24 +9,12 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.json({
-    proyecto: "Actividad Librería",
-    mensaje: "La API está funcionando correctamente!!!"
-  });
-});
+app.use(express.static("public"));
 
 app.use("/clientes", clientesRoutes);
 app.use("/libros", librosRoutes);
 app.use("/generos", generosRoutes);
 app.use("/ventas", ventasRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({
-    mensaje: "Ruta no encontrada"
-  });
-});
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
